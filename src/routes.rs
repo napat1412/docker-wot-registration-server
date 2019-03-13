@@ -377,14 +377,64 @@ fn subscribe(req: &mut Request, config: &Config) -> IronResult<Response> {
                 Ok(response)
             }
         }
+        //### Disable new domain subscription
+        /*
+        Err(diesel::result::Error::NotFound) => {
+            // Create a token, create and store a record, and finally,
+            // return the token.
+            let token = format!("{}", Uuid::new_v4());
+
+            let description = match map.find(&["desc"]) {
+                Some(&Value::String(ref desc)) => desc.to_owned(),
+                _ => format!("{}'s server", name),
+            };
+
+            let result = conn.get_unknown_account();
+            if result.is_err() {
+                error!(
+                    "subscribe(): Failed to get the unknown account: {:?}",
+                    result.err()
+                );
+                return EndpointError::with(status::InternalServerError, 500);
+            }
+
+            let account = result.unwrap();
+            match conn.add_domain(
+                &full_name,
+                account.id,
+                &token,
+                &description,
+                timestamp,
+                "",
+                "",
+                "",
+                false,
+                &continent,
+            ) {
+                Ok(_) => {
+                    // We don't want the full domain name or the DNS
+                    // challenge in the response, so we create a local
+                    // struct.
+                    let n_and_t = NameAndToken {
+                        name: subdomain.to_owned(),
+                        token: token,
+                    };
+                    json_response!(&n_and_t)
+                }
+                Err(err) => {
+                    error!("subscribe(): Failed to add domain: {:?}", err);
+                    EndpointError::with(status::InternalServerError, 500)
+                }
+            }
+        }
+        */
         // Other error, like a db issue.
         Err(err) => {
-            error!("subscribe(): Please register your domain before subscribe.");
+            error!("subscribe(): Failed to look up domain: {:?}", err);
             EndpointError::with(status::InternalServerError, 500)
         }
     }
 }
-
 fn dnsconfig(req: &mut Request, config: &Config) -> IronResult<Response> {
     let conn = config.db.get_connection();
     if conn.is_err() {
