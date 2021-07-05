@@ -1,29 +1,34 @@
 # Configuration sample.
 
 [general]
-host = "0.0.0.0"
+host = "127.0.0.1"
 http_port = 4141
-https_port = 4142
 domain = "mydomain.org"
 db_path = "/tmp/domains.sqlite"
-### Disable Certificate
-#identity_directory = "/tmp/certs"
-#identity_password = "mypassword"
 
 [pdns]
-api_ttl = 10
-dns_ttl = 600
+api_ttl = 1
+dns_ttl = 86400
 tunnel_ttl = 60
 socket_path = "/tmp/pdns_tunnel.sock"
-caa_record = "0 issue \"letsencrypt.org\""
-mx_record = "10 mx1.mydomain.org."
+caa_records = [
+  "0 issue \"letsencrypt.org\"",
+]
+mx_records = [
+  "10 inbound-smtp.us-west-2.amazonaws.com",
+]
 ns_records = [
   [ "ns1.mydomain.org.", "5.6.7.8" ],
   [ "ns2.mydomain.org.", "4.5.6.7" ],
 ]
-#psl_record = "https://github.com/publicsuffix/list/pull/XYZ"
+txt_records = [
+  [ "_psl", "https://github.com/publicsuffix/list/pull/XYZ" ],
+  [ "@", "something useful" ],
+]
 soa_record = "ns1.mydomain.org. dns-admin.mydomain.org. 2018082801 900 900 1209600 60"
-txt_record = ""
+www_addresses = [
+  "10.11.12.13",
+]
 
   [pdns.geoip]
   default = "5.6.7.8"
@@ -43,7 +48,7 @@ server = "mail.gandi.net"
 user = "accounts@mydomain.org"
 password = "******"
 sender = "accounts@mydomain.org"
-reclamation_title = "Reclaim your Mozilla IoT Gateway Domain"
+reclamation_title = "Reclaim your WebThings Gateway Domain"
 reclamation_body = """Hello,
 <br>
 <br>
@@ -51,11 +56,11 @@ Your reclamation token is: {token}
 <br>
 <br>
 If you did not request to reclaim your gateway domain, you can ignore this email."""
-confirmation_title = "Welcome to your Mozilla IoT Gateway"
+confirmation_title = "Welcome to your WebThings Gateway"
 confirmation_body = """Hello,
 <br>
 <br>
-Welcome to your Mozilla IoT Gateway! To confirm your email address, navigate to <a href="{link}">{link}</a>.
+Welcome to your WebThings Gateway! To confirm your email address, navigate to <a href="{link}">{link}</a>.
 <br>
 <br>
 Your gateway can be accessed at <a href="https://{domain}">https://{domain}</a>."""

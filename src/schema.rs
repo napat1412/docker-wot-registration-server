@@ -19,6 +19,8 @@ table! {
         verification_token -> Text,
         verified -> Bool,
         continent -> Text,
+        mode -> Integer,
+        last_ip -> Text,
     }
 }
 

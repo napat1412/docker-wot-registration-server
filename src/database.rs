@@ -6,7 +6,10 @@
 // Each record is made of the name, the private token, and the Let's Encrypt
 // challenge value.
 
-extern crate env_logger;
+use crate::models::{Account, Domain, NewAccount, NewDomain};
+use crate::schema::accounts::dsl::*;
+use crate::schema::domains::dsl::*;
+use crate::schema::{accounts, domains};
 use diesel;
 #[cfg(feature = "mysql")]
 use diesel::mysql::MysqlConnection;
@@ -15,12 +18,9 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 #[cfg(feature = "sqlite")]
 use diesel::sqlite::SqliteConnection;
-use models::{Account, Domain, NewAccount, NewDomain};
+use log::debug;
 use r2d2;
 use r2d2_diesel::ConnectionManager;
-use schema::accounts::dsl::*;
-use schema::domains::dsl::*;
-use schema::{accounts, domains};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(feature = "mysql")]
@@ -60,7 +60,7 @@ impl DatabasePool {
         DatabasePool(pool)
     }
 
-    pub fn get_connection(&self) -> Result<(Database), &'static str> {
+    pub fn get_connection(&self) -> Result<Database, &'static str> {
         match self.0.get() {
             Ok(conn) => Ok(Database(conn)),
             Err(_) => Err("Failed to get database connection."),
@@ -204,6 +204,8 @@ impl Database {
         _verification_token: &'a str,
         _verified: bool,
         _continent: &'a str,
+        _mode: i32,
+        _ip: &'a str,
     ) -> QueryResult<Domain> {
         let new_domain = NewDomain {
             name: _name,
@@ -216,6 +218,8 @@ impl Database {
             verification_token: _verification_token,
             verified: _verified,
             continent: _continent,
+            mode: _mode,
+            last_ip: _ip,
         };
 
         match diesel::insert_into(domains::table)
@@ -266,13 +270,16 @@ impl Database {
         _name: &str,
         _token: &str,
         _continent: &str,
+        _mode: i32,
+        _ip: &str,
     ) -> QueryResult<usize> {
-        //### Do not overwirte continent
-        //diesel::update(domains.filter(name.eq(_name)))
-        //    .set((token.eq(_token), continent.eq(_continent)))
-        //    .execute(self.conn())
         diesel::update(domains.filter(name.eq(_name)))
-            .set((token.eq(_token)))
+            .set((
+                token.eq(_token),
+                continent.eq(_continent),
+                mode.eq(_mode),
+                last_ip.eq(_ip),
+            ))
             .execute(self.conn())
     }
 
@@ -286,14 +293,14 @@ impl Database {
             .execute(self.conn())
     }
 
-    pub fn update_domain_timestamp(&self, _token: &str) -> QueryResult<usize> {
+    pub fn update_domain_timestamp_and_ip(&self, _token: &str, _ip: &str) -> QueryResult<usize> {
         let _timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs() as i64;
 
         diesel::update(domains.filter(token.eq(_token)))
-            .set(timestamp.eq(_timestamp))
+            .set((timestamp.eq(_timestamp), last_ip.eq(_ip)))
             .execute(self.conn())
     }
 
@@ -317,12 +324,12 @@ impl Database {
 
 #[test]
 fn test_domain_store() {
-    let _ = env_logger::init();
+    let _ = env_logger::try_init();
 
     #[cfg(feature = "mysql")]
-    let db = DatabasePool::new("mysql://root@127.0.0.1/domain_db_test_domains");
+    let db = DatabasePool::new("mysql://root:root@127.0.0.1/domain_db_test_domains");
     #[cfg(feature = "postgres")]
-    let db = DatabasePool::new("postgres://postgres@127.0.0.1/domain_db_test_domains");
+    let db = DatabasePool::new("postgres://postgres:password@127.0.0.1/domain_db_test_domains");
     #[cfg(feature = "sqlite")]
     let db = DatabasePool::new("domain_db_test_domains.sqlite");
     let conn = db.get_connection().expect("Getting connection.");
@@ -377,6 +384,8 @@ fn test_domain_store() {
         verification_token: "verification-token".to_owned(),
         verified: false,
         continent: "EU".to_owned(),
+        mode: 0,
+        last_ip: "1.2.3.4".to_owned(),
     };
     assert_eq!(
         conn.add_domain(
@@ -389,7 +398,9 @@ fn test_domain_store() {
             "",
             "verification-token",
             false,
-            "EU"
+            "EU",
+            0,
+            "1.2.3.4"
         ),
         Ok(no_challenge_record.clone())
     );
@@ -423,6 +434,8 @@ fn test_domain_store() {
         verification_token: "verification-token".to_owned(),
         verified: false,
         continent: "EU".to_owned(),
+        mode: 0,
+        last_ip: "1.2.3.4".to_owned(),
     };
     assert_eq!(
         conn.update_domain_dns_challenge("test-token", "dns-challenge"),
@@ -462,7 +475,9 @@ fn test_domain_store() {
             "",
             "",
             false,
-            "EU"
+            "EU",
+            0,
+            "1.2.3.4"
         ),
         Ok(no_challenge_record.clone())
     );
@@ -486,9 +501,11 @@ fn test_domain_store() {
         verification_token: "".to_owned(),
         verified: false,
         continent: "".to_owned(),
+        mode: 1,
+        last_ip: "5.6.7.8".to_owned(),
     };
     assert_eq!(
-        conn.update_domain_token("test.example.org", "new-token", ""),
+        conn.update_domain_token("test.example.org", "new-token", "", 1, "5.6.7.8"),
         Ok(1)
     );
     assert_eq!(
@@ -497,7 +514,10 @@ fn test_domain_store() {
     );
 
     // Update the timestamp
-    assert_eq!(conn.update_domain_timestamp(&updated_record.token), Ok(1));
+    assert_eq!(
+        conn.update_domain_timestamp_and_ip(&updated_record.token, "1.1.1.1"),
+        Ok(1)
+    );
 
     // Remove by reclamation token.
     assert_eq!(
@@ -513,12 +533,12 @@ fn test_domain_store() {
 
 #[test]
 fn test_email() {
-    let _ = env_logger::init();
+    let _ = env_logger::try_init();
 
     #[cfg(feature = "mysql")]
-    let db = DatabasePool::new("mysql://root@127.0.0.1/domain_db_test_email");
+    let db = DatabasePool::new("mysql://root:root@127.0.0.1/domain_db_test_email");
     #[cfg(feature = "postgres")]
-    let db = DatabasePool::new("postgres://postgres@127.0.0.1/domain_db_test_email");
+    let db = DatabasePool::new("postgres://postgres:password@127.0.0.1/domain_db_test_email");
     #[cfg(feature = "sqlite")]
     let db = DatabasePool::new("domain_db_test_email.sqlite");
     let conn = db.get_connection().expect("Getting connection.");
@@ -568,7 +588,9 @@ fn test_email() {
             "",
             "",
             false,
-            ""
+            "",
+            0,
+            "1.2.3.4"
         )
         .is_ok());
     assert!(

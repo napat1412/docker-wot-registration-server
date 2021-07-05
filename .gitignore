@@ -1,0 +1,8 @@
+*.bk
+*.rdb
+*.sqlite
+*.swp
+Cargo.lock
+diesel.toml
+kcov
+target

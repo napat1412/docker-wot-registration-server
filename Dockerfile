@@ -1,76 +1,47 @@
-FROM rust:1.33-stretch as rust-builder
+FROM rust:buster
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV SHELL=/bin/bash
+ARG DEBIAN_FRONTEND=noninteractive
+RUN echo "deb http://deb.debian.org/debian buster-backports main" >> /etc/apt/sources.list && \
+    sed -i 's/ main$/ main contrib/g' /etc/apt/sources.list && \
+    apt update && \
+    apt dist-upgrade -y && \
+    apt install -y \
+        cron \
+        geoipupdate \
+        pdns-backend-remote \
+        pdns-server \
+        python-six \
+        supervisor && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Install PageKite
+RUN curl -s https://pagekite.net/pk/ | bash
 
 # Create a non privileged user to build the Rust code.
 RUN useradd -m -d /home/user -p user user
-COPY . /home/user
 RUN chown -R user /home/user
 
-WORKDIR /home/user
+ARG db_type
+ENV db_type ${db_type:-mysql}
 
-ENV PATH=/home/user/.cargo/bin:/home/user/bin:$PATH
-WORKDIR /home/user/server
-RUN cargo build --release --features mysql
+COPY --chown=user:user . /home/user/registration_server/
+USER user
+WORKDIR /home/user/registration_server
+RUN cargo build --release --features "${db_type}" && \
+    cargo install diesel_cli
 
-#----------------------------------------------------
-FROM debian:stretch as pdns-builder
+USER root
+ADD docker/init /
+ADD docker/etc/cron.weekly/geoipupdate /etc/cron.weekly/
+ADD docker/etc/supervisor/conf.d/supervisord.conf /etc/supervisor/conf.d/
 
-ENV DEBIAN_FRONTEND=noninteractive
+RUN sed -i "s/{{db_type}}/${db_type}/" /init
 
-ENV SHELL=/bin/bash
+ENTRYPOINT ["/init"]
 
-RUN apt-get update && \
-    apt-get dist-upgrade -qqy && \
-    apt-get install -y \
-       bzip2 \
-       ca-certificates \
-       curl \
-       g++ \ 
-       gcc \
-       libboost-all-dev \ 
-       libc6-dev \
-       libmariadbclient-dev-compat \
-       libpq-dev \
-       libsqlite3-dev \
-       libssl-dev \
-       libssl-dev \
-       libtool \
-       make \
-       pkgconf \
-       sqlite \ 
-       -qqy \
-       --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install powerdns 4.1.5
-RUN curl https://downloads.powerdns.com/releases/pdns-4.1.5.tar.bz2 | tar xvjf -
-
-RUN cd pdns-4.1.5 && ./configure --with-modules=remote && make && make install 
-
-#----------------------------------------------------
-
-FROM debian:stretch
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-ENV SHELL=/bin/bash
-
-RUN apt-get update && \
-    apt-get dist-upgrade -qqy && \
-    apt-get install -y \
-       ca-certificates \
-       libmariadbclient-dev-compat \
-       libsqlite3-dev \
-       libssl-dev \
-       --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=pdns-builder /usr/local/sbin /usr/local/sbin
-RUN useradd -m -d /home/user -p user user
-COPY --from=rust-builder /home/user /home/user
-RUN chown -R user /home/user
-
-WORKDIR /home/user
-CMD ["./entrypoint.sh"]
+# We expect to find the configuration directory mounted at /home/user/config
+# with the following files:
+# - config.toml   : registration server configuration
+# - pagekite.conf : PageKite configuration
+# - pdns.conf     : PowerDNS configuration
+# - GeoIP.conf    : (Optional) geoipupdate configuration

@@ -2,8 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use database::DatabasePool;
-use std::path::PathBuf;
+use crate::database::DatabasePool;
 
 #[derive(Clone, Deserialize)]
 #[allow(non_snake_case)]
@@ -15,9 +14,6 @@ pub struct Continent {
     pub NA: Option<String>,
     pub OC: Option<String>,
     pub SA: Option<String>,
-    pub TH: Option<String>,
-    pub T1: Option<String>,
-    pub T2: Option<String>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -31,10 +27,7 @@ pub struct GeoIp {
 pub struct GeneralOptions {
     pub host: String,
     pub http_port: u16,
-    pub https_port: u16,
     pub db_path: String,
-    pub identity_directory: Option<PathBuf>,
-    pub identity_password: Option<String>,
     pub domain: String,
 }
 
@@ -44,12 +37,12 @@ pub struct PdnsOptions {
     pub dns_ttl: u32,
     pub tunnel_ttl: u32,
     pub api_ttl: u32,
-    pub caa_record: String,
-    pub mx_record: String,
+    pub caa_records: Vec<String>,
+    pub mx_records: Vec<String>,
     pub ns_records: Vec<Vec<String>>,
-    pub psl_record: Option<String>,
+    pub txt_records: Vec<Vec<String>>,
     pub soa_record: String,
-    pub txt_record: String,
+    pub www_addresses: Vec<String>,
     pub geoip: GeoIp,
 }
 

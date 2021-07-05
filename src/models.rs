@@ -1,4 +1,4 @@
-use schema::{accounts, domains};
+use crate::schema::{accounts, domains};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, AsChangeset, Identifiable, Queryable)]
 #[table_name = "accounts"]
@@ -40,6 +40,8 @@ pub struct Domain {
     pub verification_token: String,
     pub verified: bool,
     pub continent: String,
+    pub mode: i32,
+    pub last_ip: String,
 }
 
 #[derive(Insertable)]
@@ -55,4 +57,6 @@ pub struct NewDomain<'a> {
     pub verification_token: &'a str,
     pub verified: bool,
     pub continent: &'a str,
+    pub mode: i32,
+    pub last_ip: &'a str,
 }
