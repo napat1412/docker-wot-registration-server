@@ -33,15 +33,24 @@ www_addresses = [
   [pdns.geoip]
   default = "5.6.7.8"
   database = "./test-data/GeoLite2-Country_20180206/GeoLite2-Country.mmdb"
+  continent = [
+    [ "AF", "1.2.3.4" ],
+    [ "AN", "2.3.4.5" ],
+    [ "AS", "3.4.5.6" ],
+    [ "EU", "4.5.6.7" ],
+    [ "NA", "5.6.7.8" ],
+    [ "OC", "6.7.8.9" ],
+    [ "SA", "9.8.7.6" ],
+  ]
 
-    [pdns.geoip.continent]
-    AF = "1.2.3.4"
-    AN = "2.3.4.5"
-    AS = "3.4.5.6"
-    EU = "4.5.6.7"
-    NA = "5.6.7.8"
-    OC = "6.7.8.9"
-    SA = "9.8.7.6"
+    #[pdns.geoip.continent]
+    #AF = "1.2.3.4"
+    #AN = "2.3.4.5"
+    #AS = "3.4.5.6"
+    #EU = "4.5.6.7"
+    #NA = "5.6.7.8"
+    #OC = "6.7.8.9"
+    #SA = "9.8.7.6"
 
 [email]
 server = "mail.gandi.net"

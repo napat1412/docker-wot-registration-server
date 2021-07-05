@@ -4,6 +4,7 @@
 
 use crate::database::DatabasePool;
 
+/*
 #[derive(Clone, Deserialize)]
 #[allow(non_snake_case)]
 pub struct Continent {
@@ -21,6 +22,14 @@ pub struct GeoIp {
     pub default: String,
     pub database: Option<String>,
     pub continent: Continent,
+}
+*/
+
+#[derive(Clone, Deserialize)]
+pub struct GeoIp {
+    pub default: String,
+    pub database: Option<String>,
+    pub continent: Vec<Vec<String>>,
 }
 
 #[derive(Clone, Deserialize)]

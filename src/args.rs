@@ -88,6 +88,20 @@ fn test_args() {
         "registration_server",
         "--config-file=./config/config.toml",
     ]);
+    assert_eq!(args.general.host, "0.0.0.0");
+    assert_eq!(
+        args.pdns.ns_records,
+        [
+            [ "ns1.pagekite.meca.in.th.", "203.185.97.17" ],
+        ]
+    );
+    assert_eq!(
+        args.pdns.geoip.continent,
+        [
+            [ "T1", "203.185.97.17" ],
+        ]
+    );
+    /*
     assert_eq!(args.general.host, "127.0.0.1");
     assert_eq!(args.general.http_port, 4141);
     assert_eq!(args.general.domain, "mydomain.org");
@@ -141,5 +155,5 @@ fn test_args() {
     assert_eq!(args.email.confirmation_title, Some(conf_title.to_string()));
     assert_eq!(args.email.confirmation_body, Some(conf_body.to_string()));
     assert_eq!(args.email.success_page, Some(success.to_string()));
-    assert_eq!(args.email.error_page, Some(error.to_string()));
+    assert_eq!(args.email.error_page, Some(error.to_string()));*/
 }

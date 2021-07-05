@@ -87,8 +87,8 @@ enum PdnsResponse {
 
 fn get_geoip_address(continent: Option<String>, config: &Config) -> String {
     let geoip = config.options.pdns.geoip.clone();
-
-    match continent {
+    
+    /*match continent {
         Some(code) => match code.as_ref() {
             "AF" => geoip.continent.AF.unwrap_or(geoip.default),
             "AN" => geoip.continent.AN.unwrap_or(geoip.default),
@@ -100,7 +100,19 @@ fn get_geoip_address(continent: Option<String>, config: &Config) -> String {
             _ => geoip.default,
         },
         None => geoip.default,
+    }*/
+    
+    let mut result = geoip.default;
+    if continent != None {
+        for c in &geoip.continent {
+            info!("get_geoip_address(): for-loop continent: {}", c[0]);
+            if c[0] == continent.as_ref().unwrap().to_string() {
+                result = c[1].to_string();
+                break;
+            }
+        }
     }
+    result
 }
 
 pub fn lookup_continent(remote: IpAddr, config: &Config) -> Option<String> {
@@ -143,7 +155,7 @@ fn build_a_response_tunnel(
             None => continent,
         },
         None => continent,
-    };
+    };    
 
     // Determine the proper IP address to return, based on the continent.
     let result = get_geoip_address(c, config);
@@ -335,14 +347,31 @@ fn handle_pagekite_query(
 
         // Split up the qname.
         let parts: Vec<&str> = qname.split('.').collect();
-        let subdomain = format!("{}.{}.", parts[4], config.options.general.domain);
+        let domain_parts: Vec<&str> = config.options.general.domain.split(".").collect();
+
+        // Classify qname into nested-subdomain or subdomain to verify signature (base-on
+        // pagekite DNS-based Authentication).       
+        let subdomain;
+        let kite_domain;
+        if parts.len() == domain_parts.len()*2+7 {
+            // Case: nested-subdomain (use parts[5])
+            // (srand).(token).(sign).http-80.nested-subdomain.subdomain.(domain).(domain).
+            //    1   +   1   +   1  +   1   +       1        +    1    + domain + domain + 1
+            //    =  domain*2 + 7
+            subdomain = format!("{}.{}.", parts[5], config.options.general.domain);
+            kite_domain = format!("{}.{}.{}", parts[4], parts[5], config.options.general.domain);
+        } else {
+            // Case: subdomain (use parts[4])
+            subdomain = format!("{}.{}.", parts[4], config.options.general.domain);
+            kite_domain = format!("{}.{}", parts[4], config.options.general.domain);
+        }
         let ip = match conn.get_domain_by_name(&subdomain) {
             Ok(record) => {
                 let srand = parts[0];
                 let token = parts[1];
                 let sign = parts[2];
                 let proto = parts[3];
-                let kite_domain = format!("{}.{}", parts[4], config.options.general.domain);
+                // let kite_domain = format!("{}.{}", parts[4], config.options.general.domain);
                 let payload = format!("{}:{}:{}:{}", proto, kite_domain, srand, token);
                 let salt = sign[..8].to_owned();
 
@@ -371,7 +400,8 @@ fn handle_pagekite_query(
             }
             Err(_) => {
                 // Return 255.255.255.0 to PageKite to indicate failure.
-                "255.255.255.0"
+                // "255.255.255.0"
+                "255.255.255.1"
             }
         };
 
@@ -492,8 +522,65 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
     let api_domain = format!("api.{}.", domain);
     let domain_lookup = conn.get_domain_by_name(&qname);
 
-    // Look for a record with the qname.
-    if is_ns_subdomain || qname == api_domain || domain_lookup.is_ok() {
+    // Look for a record for subdomain. *.<subdomain>.<domain>.
+    let subdomain_regex_rule = "^[^.]*\\.[^.]*\\.".to_owned() + &domain.replace(".", "\\.") + "\\.$";
+    let subdomain_regex = Regex::new(&subdomain_regex_rule).unwrap();
+    let is_subdomain = subdomain_regex.is_match(&qname);
+    
+    if is_subdomain {
+        let qname_vec: Vec<&str> = qname.split(".").collect();
+        let wildcard_domain = format!("{}.{}.", qname_vec[1], domain);
+        let wildcarc_domain_lookup = conn.get_domain_by_name(&wildcard_domain);
+        let record = match wildcarc_domain_lookup {
+            Ok(val) => Some(val),
+            Err(_) => None,
+        };
+
+        if qtype == "A" || qtype == "ANY" {
+            // Add an "A" record.
+            info!("process_request(): lookup_subdomain  qname: {}", qname);
+            let record = record.clone().unwrap();
+
+            let continent = if record.continent.is_empty() {
+                None
+            } else {
+                Some(record.continent)
+            };
+
+            let last_ip = if record.last_ip.is_empty() {
+                None
+            } else {
+                Some(record.last_ip)
+            };
+            info!("process_request(): lookup_subdomain  original_qname: {}", original_qname);
+            //let continent_clone = continent.clone().unwrap_or("None");
+            //info!("process_request(): lookup_subdomain  continent: {}", continent_clone);
+
+            match FromPrimitive::from_i32(record.mode) {
+                Some(DomainMode::Tunneled) => {
+                    // For a PageKite subdomain, we need to use the continent stored in the
+                    // database.
+                    result.push(PdnsResponseParams::Lookup(build_a_response_tunnel(
+                        &original_qname,
+                        config.options.pdns.tunnel_ttl,
+                        config,
+                        None,
+                        continent,
+                    )));
+                }
+                Some(DomainMode::DynamicDNS) => {
+                    if last_ip.is_some() {
+                        result.push(PdnsResponseParams::Lookup(build_a_response_real(
+                            &original_qname,
+                            config.options.pdns.tunnel_ttl,
+                            last_ip.unwrap(),
+                        )));
+                    }
+                }
+                None => {}
+            }
+        }
+    } else if is_ns_subdomain || qname == api_domain || domain_lookup.is_ok() {
         let record = match domain_lookup {
             Ok(val) => Some(val),
             Err(_) => None,
@@ -502,6 +589,7 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
         if qtype == "A" || qtype == "ANY" {
             // Add an "A" record.
             if is_ns_subdomain {
+                info!("process_request(): ns_subdomain qname: {}", qname);
                 for ns in &config.options.pdns.ns_records {
                     if qname == ns[0] {
                         result.push(PdnsResponseParams::Lookup(PdnsLookupResponse {
@@ -517,6 +605,7 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
                     }
                 }
             } else if qname == api_domain {
+                info!("process_request(): api_domain  qname: {}", qname);
                 // For the API domain, we can do a GeoIP lookup based on the remote IP.
                 result.push(PdnsResponseParams::Lookup(build_a_response_tunnel(
                     &original_qname,
@@ -526,6 +615,7 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
                     None,
                 )));
             } else {
+                info!("process_request(): lookup_domain_ok  qname: {}", qname);
                 let record = record.clone().unwrap();
 
                 let continent = if record.continent.is_empty() {
@@ -585,6 +675,7 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
         && config.options.pdns.www_addresses.len() > 0
         && (qtype == "A" || qtype == "CNAME" || qtype == "ANY")
     {
+        info!("process_request(): www_domain qname: {}", qname);
         // Return a CNAME record: www.$domain -> $domain
         result.push(PdnsResponseParams::Lookup(build_cname_response(
             &original_qname,
@@ -595,6 +686,7 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
         && config.options.pdns.www_addresses.len() > 0
         && (qtype == "A" || qtype == "ANY")
     {
+        info!("process_request(): bare_domain qname: {}", qname);
         for addr in &config.options.pdns.www_addresses {
             result.push(PdnsResponseParams::Lookup(build_a_response_real(
                 &original_qname,

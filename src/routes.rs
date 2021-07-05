@@ -309,7 +309,7 @@ async fn subscribe(
                 })
             }
         }
-        Err(diesel::result::Error::NotFound) => {
+        /*Err(diesel::result::Error::NotFound) => {
             // Create a token, create and store a record, and finally, return the token.
             let token = format!("{}", Uuid::new_v4());
 
@@ -355,7 +355,7 @@ async fn subscribe(
                     HttpResponse::InternalServerError().finish()
                 }
             }
-        }
+        }*/
         // Other error, like a db issue.
         Err(err) => {
             error!("subscribe(): Failed to look up domain: {:?}", err);

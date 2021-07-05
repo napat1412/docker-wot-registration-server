@@ -203,17 +203,27 @@ soa_record = "ns1.mydomain.org. dns-admin.mydomain.org. 2018082801 900 900 12096
 
   # If you're not using geoip, you should comment out the next line.
   database = "/var/lib/GeoIP/GeoLite2-Country.mmdb"
+  continent = [
+    [ "AF", "1.2.3.4" ],
+    [ "AN", "2.3.4.5" ],
+    [ "AS", "3.4.5.6" ],
+    [ "EU", "4.5.6.7" ],
+    [ "NA", "5.6.7.8" ],
+    [ "OC", "6.7.8.9" ],
+    [ "SA", "9.8.7.6" ],
+  ]
 
+    ### Change to Dynamic Continent Configuration
     # If you're not using geoip, you should comment out all of the continents,
     # but keep the section header.
-    [pdns.geoip.continent]
-    AF = "1.2.3.4"
-    AN = "2.3.4.5"
-    AS = "3.4.5.6"
-    EU = "4.5.6.7"
-    NA = "5.6.7.8"
-    OC = "6.7.8.9"
-    SA = "9.8.7.6"
+    #[pdns.geoip.continent]
+    #AF = "1.2.3.4"
+    #AN = "2.3.4.5"
+    #AS = "3.4.5.6"
+    #EU = "4.5.6.7"
+    #NA = "5.6.7.8"
+    #OC = "6.7.8.9"
+    #SA = "9.8.7.6"
 
 [email]
 server = "mail.gandi.net"

@@ -276,7 +276,7 @@ impl Database {
         diesel::update(domains.filter(name.eq(_name)))
             .set((
                 token.eq(_token),
-                continent.eq(_continent),
+                // continent.eq(_continent),
                 mode.eq(_mode),
                 last_ip.eq(_ip),
             ))
