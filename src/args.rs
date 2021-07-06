@@ -88,20 +88,7 @@ fn test_args() {
         "registration_server",
         "--config-file=./config/config.toml",
     ]);
-    assert_eq!(args.general.host, "0.0.0.0");
-    assert_eq!(
-        args.pdns.ns_records,
-        [
-            [ "ns1.pagekite.meca.in.th.", "203.185.97.17" ],
-        ]
-    );
-    assert_eq!(
-        args.pdns.geoip.continent,
-        [
-            [ "T1", "203.185.97.17" ],
-        ]
-    );
-    /*
+    
     assert_eq!(args.general.host, "127.0.0.1");
     assert_eq!(args.general.http_port, 4141);
     assert_eq!(args.general.domain, "mydomain.org");
@@ -139,13 +126,25 @@ fn test_args() {
         args.pdns.geoip.database,
         Some("./test-data/GeoLite2-Country_20180206/GeoLite2-Country.mmdb".to_owned())
     );
-    assert_eq!(args.pdns.geoip.continent.AF, Some("1.2.3.4".to_owned()));
-    assert_eq!(args.pdns.geoip.continent.AN, Some("2.3.4.5".to_owned()));
-    assert_eq!(args.pdns.geoip.continent.AS, Some("3.4.5.6".to_owned()));
-    assert_eq!(args.pdns.geoip.continent.EU, Some("4.5.6.7".to_owned()));
-    assert_eq!(args.pdns.geoip.continent.NA, Some("5.6.7.8".to_owned()));
-    assert_eq!(args.pdns.geoip.continent.OC, Some("6.7.8.9".to_owned()));
-    assert_eq!(args.pdns.geoip.continent.SA, Some("9.8.7.6".to_owned()));
+    assert_eq!(
+        args.pdns.geoip.continent,
+        [
+            [ "AF", "1.2.3.4" ],
+            [ "AN", "2.3.4.5" ],
+            [ "AS", "3.4.5.6" ],
+            [ "EU", "4.5.6.7" ],
+            [ "NA", "5.6.7.8" ],
+            [ "OC", "6.7.8.9" ],
+            [ "SA", "9.8.7.6" ],
+        ]
+    );
+    // assert_eq!(args.pdns.geoip.continent.AF, Some("1.2.3.4".to_owned()));
+    // assert_eq!(args.pdns.geoip.continent.AN, Some("2.3.4.5".to_owned()));
+    // assert_eq!(args.pdns.geoip.continent.AS, Some("3.4.5.6".to_owned()));
+    // assert_eq!(args.pdns.geoip.continent.EU, Some("4.5.6.7".to_owned()));
+    // assert_eq!(args.pdns.geoip.continent.NA, Some("5.6.7.8".to_owned()));
+    // assert_eq!(args.pdns.geoip.continent.OC, Some("6.7.8.9".to_owned()));
+    // assert_eq!(args.pdns.geoip.continent.SA, Some("9.8.7.6".to_owned()));
     assert_eq!(args.email.server, Some("mail.gandi.net".to_owned()));
     assert_eq!(args.email.user, Some("accounts@mydomain.org".to_owned()));
     assert_eq!(args.email.password, Some("******".to_owned()));
@@ -155,5 +154,5 @@ fn test_args() {
     assert_eq!(args.email.confirmation_title, Some(conf_title.to_string()));
     assert_eq!(args.email.confirmation_body, Some(conf_body.to_string()));
     assert_eq!(args.email.success_page, Some(success.to_string()));
-    assert_eq!(args.email.error_page, Some(error.to_string()));*/
+    assert_eq!(args.email.error_page, Some(error.to_string()));
 }
