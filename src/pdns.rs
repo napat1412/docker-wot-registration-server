@@ -105,7 +105,6 @@ fn get_geoip_address(continent: Option<String>, config: &Config) -> String {
     let mut result = geoip.default;
     if continent != None {
         for c in &geoip.continent {
-            info!("get_geoip_address(): for-loop continent: {}", c[0]);
             if c[0] == continent.as_ref().unwrap().to_string() {
                 result = c[1].to_string();
                 break;
@@ -538,7 +537,6 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
 
         if qtype == "A" || qtype == "ANY" {
             // Add an "A" record.
-            info!("process_request(): lookup_subdomain  qname: {}", qname);
             let record = record.clone().unwrap();
 
             let continent = if record.continent.is_empty() {
@@ -552,9 +550,6 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
             } else {
                 Some(record.last_ip)
             };
-            info!("process_request(): lookup_subdomain  original_qname: {}", original_qname);
-            //let continent_clone = continent.clone().unwrap_or("None");
-            //info!("process_request(): lookup_subdomain  continent: {}", continent_clone);
 
             match FromPrimitive::from_i32(record.mode) {
                 Some(DomainMode::Tunneled) => {
@@ -589,7 +584,6 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
         if qtype == "A" || qtype == "ANY" {
             // Add an "A" record.
             if is_ns_subdomain {
-                info!("process_request(): ns_subdomain qname: {}", qname);
                 for ns in &config.options.pdns.ns_records {
                     if qname == ns[0] {
                         result.push(PdnsResponseParams::Lookup(PdnsLookupResponse {
@@ -605,7 +599,6 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
                     }
                 }
             } else if qname == api_domain {
-                info!("process_request(): api_domain  qname: {}", qname);
                 // For the API domain, we can do a GeoIP lookup based on the remote IP.
                 result.push(PdnsResponseParams::Lookup(build_a_response_tunnel(
                     &original_qname,
@@ -615,7 +608,6 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
                     None,
                 )));
             } else {
-                info!("process_request(): lookup_domain_ok  qname: {}", qname);
                 let record = record.clone().unwrap();
 
                 let continent = if record.continent.is_empty() {
@@ -675,7 +667,6 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
         && config.options.pdns.www_addresses.len() > 0
         && (qtype == "A" || qtype == "CNAME" || qtype == "ANY")
     {
-        info!("process_request(): www_domain qname: {}", qname);
         // Return a CNAME record: www.$domain -> $domain
         result.push(PdnsResponseParams::Lookup(build_cname_response(
             &original_qname,
@@ -686,7 +677,6 @@ fn handle_lookup(req: PdnsRequest, config: &Config) -> Result<PdnsResponse, Stri
         && config.options.pdns.www_addresses.len() > 0
         && (qtype == "A" || qtype == "ANY")
     {
-        info!("process_request(): bare_domain qname: {}", qname);
         for addr in &config.options.pdns.www_addresses {
             result.push(PdnsResponseParams::Lookup(build_a_response_real(
                 &original_qname,
